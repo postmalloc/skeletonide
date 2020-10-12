@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.12)
+project(skeletonide)
+include_directories(include/third_party)
+add_executable(skeletonide main.cpp)
+target_link_libraries(skeletonide Halide pthread dl png16 jpeg)
