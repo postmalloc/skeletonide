@@ -17,10 +17,11 @@ completion flags returned by the halide pipeline.
 
 The output on the scikit-image's horse mask:
 
-Mask:
-![mask](test/images/horse.png) 
-Skeleton:
-![skel](test/output/spook_out.png)
+Mask:  
+![mask](test/images/horse.png)    
+
+Skeleton:  
+![skel](test/output/spook_out.png)  
 
 ## Build
 
