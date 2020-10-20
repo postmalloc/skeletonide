@@ -3,15 +3,14 @@
 
 using namespace Halide;
 
-// TODO support multiple passes natively in Halide.
-// TODO or, provide an extern C function to iterate over passes
+// The pipeline below is a single iteration of Zhang-Suen algorithm.
+// TODO Set flags that mark completion of thinning
 int main(int argc, char **argv) {
-    Buffer<uint8_t> input = Tools::load_and_convert_image("test/images/horse.png");
-    int W = input.width();
-    int H = input.height();
-    Buffer<uint8_t> output(W, H);
+    ImageParam input(type_of<uint8_t>(), 2);
+    Expr W = input.width();
+    Expr H = input.height();
 
-    // offsets of nbrbours of a given pixel (x, y)
+    // offsets of neighbours of a given pixel (x, y)
     int n_x_idx[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
     int n_y_idx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
     Buffer<int> n_x_idx_buf(n_x_idx);
@@ -20,11 +19,11 @@ int main(int argc, char **argv) {
     Var x, y, k;
     Func in_bounded = BoundaryConditions::repeat_edge(input);
 
-    // fn to get the nth nbrbour of a pixel
+    // fn to get the nth neighbours  of a pixel
     Func nbr;
     nbr(x, y, k) = in_bounded(x + n_x_idx_buf(k), y + n_y_idx_buf(k));
 
-    // fn count the number of non-zero nbrbors
+    // fn count the number of non-zero neighbours
     RDom j(0, 8);
     Func nbr_cnt("nbr_cnt");
     nbr_cnt(x, y) = sum(select(nbr(x, y, j) > 0, 1, 0));
@@ -73,8 +72,9 @@ int main(int argc, char **argv) {
 
     Func res;
     res(x, y) = skel2(x, y);
-    res.trace_stores();
-    res.realize(output);
-    Tools::convert_and_save_image(output, "test/output/skel.png");
+
+    // Compiling to a static lib
+    res.compile_to_static_library("skeletonide", {input}, "skel");
+
     return 0;
 }
