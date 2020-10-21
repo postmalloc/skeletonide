@@ -1,14 +1,20 @@
 #include "Halide.h"
+#include "halide_target_check.h"
 #include "halide_image_io.h"
 
 using namespace Halide;
 
 // The pipeline below is a single iteration of Zhang-Suen algorithm.
-// TODO Set flags that mark completion of thinning
 int main(int argc, char **argv) {
+    Target target = find_gpu_target();
+    if (!target.has_gpu_feature()) {
+        return false;
+    }
     ImageParam input(type_of<uint8_t>(), 2);
     Expr W = input.width();
     Expr H = input.height();
+
+    Var x_outer, x_inner, y_outer, y_inner, tile_index;
 
     // offsets of neighbours of a given pixel (x, y)
     int n_x_idx[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
@@ -23,7 +29,7 @@ int main(int argc, char **argv) {
     Func nbr;
     nbr(x, y, k) = in_bounded(x + n_x_idx_buf(k), y + n_y_idx_buf(k));
 
-    // fn count the number of non-zero neighbours
+    // fn to count the number of non-zero neighbours
     RDom j(0, 8);
     Func nbr_cnt("nbr_cnt");
     nbr_cnt(x, y) = sum(select(nbr(x, y, j) > 0, 1, 0));
@@ -42,7 +48,10 @@ int main(int argc, char **argv) {
 
     Func skel1("skel1");
     skel1(x, y) = cast<uint8_t>(select(fst_cnd, 255, in_bounded(x, y)));
-    skel1.compute_root().vectorize(x, 8).parallel(y);
+//    skel1.compute_root().vectorize(x, 8).parallel(y);
+
+    Var c, i, block, thread, x0, y0, xi, yi;
+    skel1.compute_root().gpu_tile(x, y, x0, y0, xi, yi, 8, 8);
 
     // step-2 of Zhang-Suen method
     // operate on the array modified in step-1
@@ -68,13 +77,11 @@ int main(int argc, char **argv) {
 
     Func skel2("skel2");
     skel2(x, y) = cast<uint8_t>(select(snd_cnd, 255, skel1(x, y)));
-    skel2.compute_root().vectorize(x, 8).parallel(y);
-
-    Func res;
-    res(x, y) = skel2(x, y);
+//    skel2.vectorize(x, 8).parallel(y);
+    skel2.gpu_tile(x, y, x0, y0, xi, yi, 8, 8);
 
     // Compiling to a static lib
-    res.compile_to_static_library("skeletonide", {input}, "skel");
+    skel2.compile_to_static_library("skeletonide", {input}, "skel", target);
 
     return 0;
 }
