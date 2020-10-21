@@ -3,7 +3,7 @@
 
 Skeletonide is a parallel implementaion of Zhang-Suen morphological
 thinning algorithm written in Halide-lang. It can be used for fast
-skeletonization of binary masks. Can run on the GPU.
+skeletonization of binary masks. Can also be run on the GPU.
 
 When you build the project, it generates an ahead-of-time
 compiled static library from the halide pipeline. It is then
@@ -19,7 +19,8 @@ completion flags returned by the halide pipeline.
 ## Usage
 
 See `spook.cpp` for an example. The example benchmarks the time 
-taken to skeletonize a large image on the GPU.
+taken to skeletonize a large image on the GPU. Pipeline code is in
+`src/pipeline.cpp`.
 
 
 ## Benchmarks
@@ -33,10 +34,13 @@ run on the scikit-image's horse mask, but tiled 10x10 to create a large
 | Scikit-image `morphology.skeletonize` | **2073 ms**     | NA              |
 | Skeletonide                           | 3786 ms         | **210 ms**     |
 
-The scheduling inside the Halide pipeline for can be adjusted more by 
-trial-and-error to achieve better CPU times. However, skeletonide on GPU
-performs roughly 10x faster than the scikit-image's CPU implemetation. Not
-a level playing field, obviously.
+The scheduling of the Halide pipeline can be further tweaked through 
+trial-and-error to achieve better CPU times. The slow performance on the CPU
+is partly explained by the fact that the pipeline only represents a single pass
+of the thinning algorithm. There is significant time penalty in handling the 
+iterations from the outside as illustrated in `spook.cpp`.  
+However, on the GPU, Skeletonide performs roughly 10x faster than the scikit-image's 
+CPU implemetation without major modifications. Not a level playing field, obviously.
 
 The output on the scikit-image's horse mask:
 
